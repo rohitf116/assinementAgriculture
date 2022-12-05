@@ -7,6 +7,7 @@ const {
   getAllCrops,
   getDataByQuery,
 } = require("../controller/FieldController");
+const { plantCrop } = require("../controller/CropController");
 const { createCropCycleField } = require("../controller/CropCycleField");
 router.post("/organigation", createOrganization);
 
@@ -18,4 +19,5 @@ router
 
 router.post("/cropcyclefield", createCropCycleField);
 
+router.post("/crop", plantCrop);
 module.exports = router;
