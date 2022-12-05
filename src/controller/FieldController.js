@@ -1,7 +1,7 @@
 const FieldModel = require("../model/FieldModel");
 const { isValid, nameValidation } = require("../validations/validations");
 exports.createField = async (req, res) => {
-  const { name, country, state, city, regionAndField } = req.body;
+  const { name, country, state, city } = req.body;
   if (!Object.keys(req.body).length) {
     res.status(400).json({ status: false, message: "Body cannot be empty" });
   }
@@ -70,7 +70,8 @@ exports.createField = async (req, res) => {
 };
 
 exports.getAllCrops = async (req, res) => {
-  const allData = await FieldModel.find();
+  const allData = await FieldModel.find().populate("cycle");
+  console.log(allData, "allData");
   res
     .status(200)
     .json({ status: true, message: "Successfuly received", data: allData });
@@ -78,8 +79,20 @@ exports.getAllCrops = async (req, res) => {
 
 exports.getDataByQuery = async (req, res) => {
   const { crop } = req.query;
-  console.log(crop);
-  const allData = await FieldModel.find({ crops: { $in: crop } });
+  console.log(crop, "crop");
+  const allData = await FieldModel.aggregate([
+    {
+      $lookup: {
+        from: "cropcyclefields",
+        foreignField: "_id",
+        localField: "cycle",
+        as: "cycle",
+      },
+    },
+    {
+      $match: { "cycle.cropsCanGrow": { $in: [crop] } },
+    },
+  ]);
   res
     .status(200)
     .json({ status: true, message: "Successfuly received", data: allData });

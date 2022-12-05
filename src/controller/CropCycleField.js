@@ -25,11 +25,7 @@ exports.createCropCycleField = async (req, res) => {
       .status(400)
       .json({ status: false, message: "month must be present" });
   }
-  if (!(month < 1 || month <= 13)) {
-    return res
-      .status(400)
-      .json({ status: false, message: "month must be valid character" });
-  }
+
   //name
   if (!isValid(field)) {
     return res
@@ -39,20 +35,47 @@ exports.createCropCycleField = async (req, res) => {
   if (!isVaildId(field)) {
     return res.status(400).json({ status: false, message: "field valid id" });
   }
-  const checkForField = await FieldModel.findById(field);
+  const checkForField = await FieldModel.findOne({ id: field });
   if (!checkForField) {
     return res.status(404).json({ status: false, message: "field not found" });
   }
-
+  const check = await CropCycleFieldModel.findOne({
+    field,
+    cropsCanGrow: { $in: [cropsCanGrow] },
+  });
+  if (check) {
+    return res.status(400).json({
+      status: false,
+      message: "this crop is already added in this field",
+    });
+  }
+  const foundId = await CropCycleFieldModel.findOne({ field });
+  if (foundId?.cropsCanGrow?.length) {
+    const { _id: id } = foundId;
+    const updated = await CropCycleFieldModel.findOneAndUpdate(
+      { id },
+      { $addToSet: { cropsCanGrow: cropsCanGrow } },
+      { new: true }
+    );
+    const { _id } = foundId;
+    await FieldModel.findOneAndUpdate(
+      { id: field, cycle: { $nin: { _id } } },
+      { $addToSet: { cycle: _id } }
+    );
+    return res
+      .status(200)
+      .json({ status: true, message: "Succesfully updated", data: updated });
+  }
   const CropCycleFieldCreated = await CropCycleFieldModel.create({
     name,
     month,
     field,
     cropsCanGrow,
   });
-  const cropsAdded = await FieldModel.findOneAndUpdate(
-    { id: field },
-    { $addToSet: { crops: cropsCanGrow } }
+  const { _id } = CropCycleFieldCreated;
+  await FieldModel.findOneAndUpdate(
+    { id: field, cycle: { $nin: { _id } } },
+    { $addToSet: { cycle: _id } }
   );
   res.status(201).json({
     status: false,
